@@ -51,6 +51,59 @@ def calculate_makespan_of_complete_schedule(schedule, num_machines, proc_times_j
     
     return float(completion_times[num_scheduled_jobs-1, num_machines-1])
 
+
+def delta_makespan_swap(schedule, num_machines, proc_times_jm, completion_times, i, j):
+    """
+    Compute the makespan delta for swapping two jobs at positions i and j in the schedule.
+    schedule: list of job indices
+    num_machines: number of machines
+    proc_times_jm: 2D array [job, machine] of processing times
+    completion_times: current completion time matrix of shape (n_jobs, num_machines)
+    i, j: positions in the schedule to swap (i < j)
+
+    Returns:
+        new_makespan: float, makespan after swap
+        delta: float, change in makespan (new - old)
+        new_completion_times: updated completion_times matrix for the swapped schedule
+    """
+    # Copy original completion times for rollback
+    n = len(schedule)
+    new_ct = completion_times.copy()
+
+    # Swap jobs in a local copy of schedule
+    s = schedule.copy()
+    s[i], s[j] = s[j], s[i]
+
+    # Recompute affected segment from position i to j
+    # If i == 0, initialize first row; else reuse prefix
+    start = i
+    if start == 0:
+        # first job's C on machine 0
+        job_idx = s[0]
+        new_ct[0, 0] = proc_times_jm[job_idx, 0]
+        # first job across machines
+        for m in range(1, num_machines):
+            new_ct[0, m] = new_ct[0, m-1] + proc_times_jm[job_idx, m]
+        start = 1
+
+    # Recompute from start to j
+    for idx in range(start, j+1):
+        job_idx = s[idx]
+        # machine 0 uses previous job on same machine
+        new_ct[idx, 0] = new_ct[idx-1, 0] + proc_times_jm[job_idx, 0]
+        # machines 1..M-1
+        for m in range(1, num_machines):
+            new_ct[idx, m] = max(new_ct[idx, m-1], new_ct[idx-1, m]) + proc_times_jm[job_idx, m]
+
+    # For positions > j, can reuse old completion times
+    for idx in range(j+1, n):
+        new_ct[idx] = completion_times[idx]
+
+    old_makespan = completion_times[n-1, num_machines-1]
+    new_makespan = new_ct[n-1, num_machines-1]
+    delta = new_makespan - old_makespan
+    return new_makespan, delta, new_ct
+
 def concatenate_schedule(starting_jobs, finishing_jobs_reversed):
     actual_finishing_jobs = list(reversed(finishing_jobs_reversed))
     return starting_jobs + actual_finishing_jobs
