@@ -175,6 +175,64 @@ def tabu_search(initial_schedule, num_machines, proc_times_jm,
     return best_schedule, best_makespan
 
 
+def compute_completion_times(schedule, proc_times_jm, num_machines):
+    n = len(schedule)
+    completion_times = np.zeros((n, num_machines))
+    completion_times[0, 0] = proc_times_jm[schedule[0], 0]
+    for m in range(1, num_machines):
+        completion_times[0, m] = completion_times[0, m - 1] + proc_times_jm[schedule[0], m]
+    for i in range(1, n):
+        job = schedule[i]
+        completion_times[i, 0] = completion_times[i - 1, 0] + proc_times_jm[job, 0]
+        for m in range(1, num_machines):
+            completion_times[i, m] = max(completion_times[i, m - 1], completion_times[i - 1, m]) + proc_times_jm[job, m]
+    return completion_times
+
+def hill_climbing(initial_schedule, num_machines, proc_times_jm,  max_iterations=500):
+    current_schedule = list(initial_schedule)
+    n = len(current_schedule)
+    completion_times = np.zeros((n, num_machines))
+    # fill matrix
+    first_job = current_schedule[0]
+    completion_times[0,0] = proc_times_jm[first_job,0]
+    for m in range(1, num_machines):
+        completion_times[0,m] = completion_times[0,m-1] + proc_times_jm[first_job,m]
+    for i in range(1, n):
+        job = current_schedule[i]
+        completion_times[i,0] = completion_times[i-1,0] + proc_times_jm[job,0]
+        for m in range(1, num_machines):
+            completion_times[i,m] = max(completion_times[i,m-1], completion_times[i-1,m]) + proc_times_jm[job,m]
+    current_makespan = completion_times[-1, -1]
+    
+    for it in range(max_iterations):
+        improved = False
+        best_delta = 0
+        best_swap = None
+        best_ct = None
+        best_makespan = current_makespan
+
+        # Try all neighbor swaps
+        for i in range(n - 1):
+            for j in range(i + 1, n):
+                new_mk, delta, new_ct = delta_makespan_swap(current_schedule, num_machines, proc_times_jm, completion_times, i, j)
+                if new_mk < best_makespan:
+                    improved = True
+                    best_delta = delta
+                    best_swap = (i, j)
+                    best_ct = new_ct
+                    best_makespan = new_mk
+
+        if not improved:
+            break  # No improvement found => local optimum
+
+        # Apply the best move
+        i, j = best_swap
+        current_schedule[i], current_schedule[j] = current_schedule[j], current_schedule[i]
+        completion_times = best_ct
+        current_makespan = best_makespan
+
+    return current_schedule, current_makespan
+
 
 def create_root_node(num_machines, proc_times_jm, all_job_indices_list):
     # This function uses Node and calculate_bound_bi_directional from utils.py
@@ -333,7 +391,7 @@ def iterative_beam_search(num_jobs, num_machines, proc_times_jm,
         # Only apply hill climbing if we found a valid schedule
         if iter_best_makespan and len(iter_best_schedule) > 0:
             print("\n--- Starting Hill Climbing to further improve the solution ---")
-            schedule_solution, makespan_solution = tabu_search(iter_best_schedule, num_machines, proc_times_jm) 
+            schedule_solution, makespan_solution = hill_climbing(iter_best_schedule, num_machines, proc_times_jm) 
             if makespan_solution < overall_best_makespan:
                 overall_best_makespan = makespan_solution
                 overall_best_schedule = schedule_solution
@@ -389,8 +447,8 @@ if __name__ == '__main__':
         D_factor_param = 2
     else:
         file_path = sys.argv[1]
-        max_iters_param = int(sys.argv[2]) if len(sys.argv) > 2 else 10
-        time_limit_param = int(sys.argv[3]) if len(sys.argv) > 3 else 60
+        max_iters_param = int(sys.argv[2]) if len(sys.argv) > 2 else 12
+        time_limit_param = int(sys.argv[3]) if len(sys.argv) > 3 else 200000
         init_D_param = int(sys.argv[4]) if len(sys.argv) > 4 else 1
         D_factor_param = int(sys.argv[5]) if len(sys.argv) > 5 else 2
 

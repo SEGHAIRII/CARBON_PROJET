@@ -1,41 +1,51 @@
-Instance,BestMakespan,ExecTime_s,TrueUpperBound,RPD_percentage
-20_20_1.txt,2339,25.6041,2297,1.83
-20_20_10.txt,2223,25.3952,2178,2.07
-20_20_2.txt,2196,25.3569,2100,4.57
-20_20_3.txt,2374,25.4792,2326,2.06
-20_20_4.txt,2293,25.4326,2223,3.15
-20_20_5.txt,2360,25.1654,2291,3.01
-20_20_6.txt,2290,22.0752,2226,2.88
-20_20_7.txt,2326,24.7788,2273,2.33
-20_20_8.txt,2232,25.4742,2200,1.45
-20_20_9.txt,2286,27.1713,2237,2.19
-20_5_1.txt,1278,7.5985,1278,0.00
-20_5_10.txt,1108,7.4599,1108,0.00
-20_5_2.txt,1412,8.1324,1359,3.90
-20_5_3.txt,1081,7.1171,1081,0.00
-20_5_4.txt,1293,7.2245,1293,0.00
-20_5_5.txt,1236,7.1520,1236,0.00
-20_5_6.txt,1195,7.2278,1195,0.00
-20_5_7.txt,1280,4.8808,1239,3.31
-20_5_8.txt,1206,7.3135,1206,0.00
-20_5_9.txt,1230,5.6726,1230,0.00
-50_10_1.txt,2992,77.7450,3025,-1.09
-50_10_10.txt,3092,76.9224,3091,0.03
-50_10_2.txt,2906,77.6803,2892,0.48
-50_10_3.txt,2851,77.9324,2864,-0.45
-50_10_4.txt,3133,77.7767,3064,2.25
-50_10_5.txt,3091,77.3667,2986,3.52
-50_10_6.txt,3006,77.3892,3006,0.00
-50_10_7.txt,3235,71.2206,3107,4.12
-50_10_8.txt,3044,76.9621,3039,0.16
-50_10_9.txt,2897,78.0144,2902,-0.17
-50_20_1.txt,4064,80.8320,3875,4.88
-50_20_10.txt,3992,81.0246,3777,5.69
-50_20_2.txt,3905,81.5494,3715,5.11
-50_20_3.txt,3900,82.3138,3668,6.32
-50_20_4.txt,3939,82.2086,3752,4.98
-50_20_5.txt,3809,81.9080,3635,4.79
-50_20_6.txt,3806,82.2732,3698,2.92
-50_20_7.txt,3942,82.4435,3716,6.08
-50_20_8.txt,3953,82.4741,3709,6.58
-50_20_9.txt,4000,81.4941,3765,6.24
+Instance,BestMakespan,ExecTime_s,TrueUpperBound,RPD_percentage,Status
+100_5_1.txt,N/A,N/A,5493,N/A,Script Error
+100_5_10.txt,N/A,N/A,5328,N/A,Script Error
+100_5_2.txt,N/A,N/A,5268,N/A,Script Error
+100_5_3.txt,N/A,N/A,5175,N/A,Script Error
+100_5_4.txt,N/A,N/A,5014,N/A,Script Error
+100_5_5.txt,N/A,N/A,5250,N/A,Script Error
+100_5_6.txt,N/A,N/A,5135,N/A,Script Error
+100_5_7.txt,N/A,N/A,5246,N/A,Script Error
+100_5_8.txt,N/A,N/A,5106,N/A,Script Error
+100_5_9.txt,N/A,N/A,5454,N/A,Script Error
+20_20_1.txt,N/A,N/A,2297,N/A,Script Error
+20_20_10.txt,N/A,N/A,2178,N/A,Script Error
+20_20_2.txt,N/A,N/A,2100,N/A,Script Error
+20_20_3.txt,N/A,N/A,2326,N/A,Script Error
+20_20_4.txt,N/A,N/A,2223,N/A,Script Error
+20_20_5.txt,N/A,N/A,2291,N/A,Script Error
+20_20_6.txt,N/A,N/A,2226,N/A,Script Error
+20_20_7.txt,N/A,N/A,2273,N/A,Script Error
+20_20_8.txt,N/A,N/A,2200,N/A,Script Error
+20_20_9.txt,N/A,N/A,2237,N/A,Script Error
+20_5_1.txt,N/A,N/A,1278,N/A,Script Error
+20_5_10.txt,N/A,N/A,1108,N/A,Script Error
+20_5_2.txt,N/A,N/A,1359,N/A,Script Error
+20_5_3.txt,N/A,N/A,1081,N/A,Script Error
+20_5_4.txt,N/A,N/A,1293,N/A,Script Error
+20_5_5.txt,N/A,N/A,1236,N/A,Script Error
+20_5_6.txt,N/A,N/A,1195,N/A,Script Error
+20_5_7.txt,N/A,N/A,1239,N/A,Script Error
+20_5_8.txt,N/A,N/A,1206,N/A,Script Error
+20_5_9.txt,N/A,N/A,1230,N/A,Script Error
+50_10_1.txt,N/A,N/A,3025,N/A,Script Error
+50_10_10.txt,N/A,N/A,3091,N/A,Script Error
+50_10_2.txt,N/A,N/A,2892,N/A,Script Error
+50_10_3.txt,N/A,N/A,2864,N/A,Script Error
+50_10_4.txt,N/A,N/A,3064,N/A,Script Error
+50_10_5.txt,N/A,N/A,2986,N/A,Script Error
+50_10_6.txt,N/A,N/A,3006,N/A,Script Error
+50_10_7.txt,N/A,N/A,3107,N/A,Script Error
+50_10_8.txt,N/A,N/A,3039,N/A,Script Error
+50_10_9.txt,N/A,N/A,2902,N/A,Script Error
+50_20_1.txt,N/A,N/A,3875,N/A,Script Error
+50_20_10.txt,N/A,N/A,3777,N/A,Script Error
+50_20_2.txt,N/A,N/A,3715,N/A,Script Error
+50_20_3.txt,N/A,N/A,3668,N/A,Script Error
+50_20_4.txt,N/A,N/A,3752,N/A,Script Error
+50_20_5.txt,N/A,N/A,3635,N/A,Script Error
+50_20_6.txt,N/A,N/A,3698,N/A,Script Error
+50_20_7.txt,N/A,N/A,3716,N/A,Script Error
+50_20_8.txt,N/A,N/A,3709,N/A,Script Error
+50_20_9.txt,N/A,N/A,3765,N/A,Script Error
