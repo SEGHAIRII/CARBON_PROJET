@@ -188,7 +188,7 @@ def compute_completion_times(schedule, proc_times_jm, num_machines):
             completion_times[i, m] = max(completion_times[i, m - 1], completion_times[i - 1, m]) + proc_times_jm[job, m]
     return completion_times
 
-def hill_climbing(initial_schedule, num_machines, proc_times_jm,  max_iterations=500):
+def hill_climbing(initial_schedule, num_machines, proc_times_jm,  max_iterations=100):
     current_schedule = list(initial_schedule)
     n = len(current_schedule)
     completion_times = np.zeros((n, num_machines))
@@ -412,7 +412,7 @@ def iterative_beam_search(num_jobs, num_machines, proc_times_jm,
 
         if time_limit_seconds is not None and current_total_execution_time > time_limit_seconds:
             print("Time limit reached. Stopping IBS.")
-            break
+            return overall_best_makespan, overall_best_schedule, time_limit_seconds
 
         D = D * beam_width_factor
         
