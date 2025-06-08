@@ -12,6 +12,9 @@ from io_handler import parse_input
 import random
 from collections import deque
 
+from concurrent.futures import ProcessPoolExecutor
+
+
 def compute_critical_path_positions(schedule, num_machines, proc_times_jm, completion_times):
     """
     Backtrack through the completion_times matrix to identify the indices
@@ -188,7 +191,7 @@ def compute_completion_times(schedule, proc_times_jm, num_machines):
             completion_times[i, m] = max(completion_times[i, m - 1], completion_times[i - 1, m]) + proc_times_jm[job, m]
     return completion_times
 
-def hill_climbing(initial_schedule, num_machines, proc_times_jm,  max_iterations=100):
+def hill_climbing(initial_schedule, num_machines, proc_times_jm,  max_iterations=150):
     current_schedule = list(initial_schedule)
     n = len(current_schedule)
     completion_times = np.zeros((n, num_machines))
@@ -318,116 +321,119 @@ def select_best_d_nodes(candidate_nodes, D_beam_width, current_UB, num_machines,
     candidate_nodes.sort() 
     return candidate_nodes[:D_beam_width]
 
+def parallel_child_gen(args):
+    parent_c_node, iteration_adaptive_UB, all_job_indices, num_jobs, num_machines, proc_times_jm = args
+    return generate_bi_directional_children(parent_c_node, iteration_adaptive_UB,
+                                            all_job_indices, num_jobs, num_machines, proc_times_jm)
+
 def iterative_beam_search(num_jobs, num_machines, proc_times_jm,
-                          initial_beam_width=1, beam_width_factor=2, max_ibs_iterations=10,
+                          initial_beam_width=1, beam_width_factor=2, max_ibs_iterations=20,
                           time_limit_seconds=None):
     
-    start_overall_time = time.time()
-    
-    overall_best_makespan = float('inf')
-    overall_best_schedule = []
-    
-    all_job_indices = list(range(num_jobs))
+        start_overall_time = time.time()
 
-    D = initial_beam_width
-    
-    print(f"Starting Iterative Beam Search. Max IBS Iterations: {max_ibs_iterations}, Time Limit: {time_limit_seconds}s\n")
+        overall_best_makespan = float('inf')
+        overall_best_schedule = []
 
-    for ibs_iter_count in range(max_ibs_iterations):
-        print(f'===========================iter = {ibs_iter_count}')
-        iter_process_start_time = time.time()
-        
-        root_node = create_root_node(num_machines, proc_times_jm, all_job_indices)
-        current_level_nodes = [root_node]
-        
-        if overall_best_makespan == float('inf'):
-            # For first iteration, use a loose upper bound based on sum of all processing times
-            initial_estimate = 0
-            for i in range(num_jobs):
-                for j in range(num_machines):
-                    initial_estimate += proc_times_jm[i, j]
-            current_UB_for_pruning = initial_estimate  # Very loose bound for first iteration
-        else:
-            # Apply relaxation factor to existing best makespan
-            relaxation_factor = 1.1  # 10% relaxation
-            current_UB_for_pruning = overall_best_makespan * relaxation_factor
-        
-        iter_best_schedule= []
-        iter_best_makespan = float('inf')
-        for level in range(num_jobs):
-            if not current_level_nodes:
+        all_job_indices = list(range(num_jobs))
+        D = initial_beam_width
+
+        print(f"Starting Iterative Beam Search. Max IBS Iterations: {max_ibs_iterations}, Time Limit: {time_limit_seconds}s\n")
+
+        for ibs_iter_count in range(max_ibs_iterations):
+            print(f'===========================iter = {ibs_iter_count}')
+            iter_process_start_time = time.time()
+
+            root_node = create_root_node(num_machines, proc_times_jm, all_job_indices)
+            current_level_nodes = [root_node]
+
+            if overall_best_makespan == float('inf'):
+                current_UB_for_pruning = sum(proc_times_jm[i, j] for i in range(num_jobs) for j in range(num_machines))
+            else:
+                current_UB_for_pruning = overall_best_makespan * 1.1
+
+            iter_best_schedule = []
+            iter_best_makespan = float('inf')
+
+            for level in range(num_jobs):
+                if not current_level_nodes:
+                    break
+
+                # Prepare args for parallel execution
+                task_args = [
+                    (
+                        parent_c_node,
+                        current_UB_for_pruning * 1.2 if ibs_iter_count < 2 and D <= 5 else current_UB_for_pruning,
+                        all_job_indices,
+                        num_jobs,
+                        num_machines,
+                        proc_times_jm
+                    )
+                    for parent_c_node in current_level_nodes
+                ]
+
+                next_level_candidates_partial = []
+
+                # Use multiprocessing to generate children in parallel
+                with ProcessPoolExecutor() as executor:
+                    results = executor.map(parallel_child_gen, task_args)
+
+                    for children_nodes in results:
+                        for child in children_nodes:
+                            if len(child.starting) + len(child.finishing) == num_jobs:
+                                schedule_solution = concatenate_schedule(child.starting, child.finishing)
+                                makespan_solution = calculate_makespan_of_complete_schedule(schedule_solution, num_machines, proc_times_jm)
+
+                                if makespan_solution < iter_best_makespan:
+                                    iter_best_makespan = makespan_solution
+                                    iter_best_schedule = schedule_solution
+                            else:
+                                next_level_candidates_partial.append(child)
+
+                if not next_level_candidates_partial:
+                    break
+
+                current_level_nodes = select_best_d_nodes(next_level_candidates_partial, D, current_UB_for_pruning, num_machines, proc_times_jm)
+
+            print(f'=====result before hill climbing = {iter_best_makespan} ======')
+            if iter_best_makespan and len(iter_best_schedule) > 0:
+                print("\n--- Starting Hill Climbing to further improve the solution ---")
+                schedule_solution, makespan_solution = hill_climbing(iter_best_schedule, num_machines, proc_times_jm)
+                if makespan_solution < overall_best_makespan:
+                    overall_best_makespan = makespan_solution
+                    overall_best_schedule = schedule_solution
+                    current_UB_for_pruning = overall_best_makespan
+            else:
+                print("\n--- No valid schedule found for hill climbing in this iteration ---")
+
+            current_total_execution_time = time.time() - start_overall_time
+            iter_processing_duration = time.time() - iter_process_start_time
+
+            print(f"--- IBS Iteration {ibs_iter_count + 1} (Beam Width D={D}) Completed ---")
+            print(f"    Time for this iteration's processing: {iter_processing_duration:.4f} seconds")
+            print(f"Best Makespan Found So Far: {overall_best_makespan if overall_best_makespan != float('inf') else 'N/A'}")
+            printable_schedule = [j + 1 for j in overall_best_schedule] if overall_best_schedule else 'N/A'
+            print(f"Best Schedule Found So Far (1-indexed jobs): {printable_schedule}")
+            print(f"Total Execution Time Up To This Point: {current_total_execution_time:.4f} seconds")
+            print("-" * 60)
+
+            if time_limit_seconds is not None and current_total_execution_time > time_limit_seconds:
+                print("Time limit reached. Stopping IBS.")
+                return overall_best_makespan, overall_best_schedule, time_limit_seconds
+
+            D = D * beam_width_factor
+            if D > (num_jobs ** 2) * 2 and num_jobs > 10 and D > 10000:
+                print(f"Beam width D={D} is becoming very large. Stopping IBS to conserve memory.")
                 break
-            
-            next_level_candidates_partial = []
-            
-            for parent_c_node in current_level_nodes:
-                # In early iterations with small beam width, use a more relaxed pruning
-                iteration_adaptive_UB = current_UB_for_pruning
-                if ibs_iter_count < 2 and D <= 5:  # For first two iterations with small beam width
-                    iteration_adaptive_UB *= 1.2  # Extra 20% relaxation
-                
-                children_nodes = generate_bi_directional_children(parent_c_node, iteration_adaptive_UB,
-                                                                  all_job_indices, num_jobs, num_machines, proc_times_jm)
-                
-                for child in children_nodes: 
-                    if len(child.starting) + len(child.finishing) == num_jobs:
-                        schedule_solution = concatenate_schedule(child.starting, child.finishing)
-                        makespan_solution = calculate_makespan_of_complete_schedule(schedule_solution, num_machines, proc_times_jm)
-                        
-                        if makespan_solution < iter_best_makespan:
-                            iter_best_makespan = makespan_solution
-                            iter_best_schedule = schedule_solution
-                    else: 
-                        next_level_candidates_partial.append(child)
 
-            if not next_level_candidates_partial:
-                break 
+        final_execution_time = time.time() - start_overall_time
+        print("\n--- Final Result After All Iterations ---")
+        print(f"Best Makespan: {overall_best_makespan if overall_best_makespan != float('inf') else 'N/A'}")
+        printable_schedule_final = [j + 1 for j in overall_best_schedule] if overall_best_schedule else 'N/A'
+        print(f"Best Schedule (1-indexed jobs): {printable_schedule_final}")
+        print(f"Total Execution Time: {final_execution_time:.4f} seconds")
 
-            current_level_nodes = select_best_d_nodes(next_level_candidates_partial, D, current_UB_for_pruning, 
-                                                      num_machines, proc_times_jm)
-        
-
-        print(f'=====result before hill climbing = {iter_best_makespan} ======')
-        # Only apply hill climbing if we found a valid schedule
-        if iter_best_makespan and len(iter_best_schedule) > 0:
-            print("\n--- Starting Hill Climbing to further improve the solution ---")
-            schedule_solution, makespan_solution = hill_climbing(iter_best_schedule, num_machines, proc_times_jm) 
-            if makespan_solution < overall_best_makespan:
-                overall_best_makespan = makespan_solution
-                overall_best_schedule = schedule_solution
-                current_UB_for_pruning = overall_best_makespan
-        else:
-            print("\n--- No valid schedule found for hill climbing in this iteration ---")
-        
-        current_total_execution_time = time.time() - start_overall_time
-        iter_processing_duration = time.time() - iter_process_start_time
-#================================current iter solution=======================================================================
-        print(f"--- IBS Iteration {ibs_iter_count + 1} (Beam Width D={D}) Completed ---")
-        print(f"    Time for this iteration's processing: {iter_processing_duration:.4f} seconds")
-        print(f"Best Makespan Found So Far: {overall_best_makespan if overall_best_makespan != float('inf') else 'N/A'}")
-        printable_schedule = [j + 1 for j in overall_best_schedule] if overall_best_schedule else 'N/A'
-        print(f"Best Schedule Found So Far (1-indexed jobs): {printable_schedule}")
-        print(f"Total Execution Time Up To This Point: {current_total_execution_time:.4f} seconds")
-        print("-" * 60)
-
-        if time_limit_seconds is not None and current_total_execution_time > time_limit_seconds:
-            print("Time limit reached. Stopping IBS.")
-            return overall_best_makespan, overall_best_schedule, time_limit_seconds
-
-        D = D * beam_width_factor
-        
-        if D > (num_jobs**2) * 2 and num_jobs > 10 and D > 10000: 
-             print(f"Beam width D={D} is becoming very large. Stopping IBS to conserve memory.")
-             break
-#=========================================final result==============================================
-    final_execution_time = time.time() - start_overall_time
-    print("\n--- Final Result After All Iterations ---")
-    print(f"Best Makespan: {overall_best_makespan if overall_best_makespan != float('inf') else 'N/A'}")
-    printable_schedule_final = [j + 1 for j in overall_best_schedule] if overall_best_schedule else 'N/A'
-    print(f"Best Schedule (1-indexed jobs): {printable_schedule_final}")
-    print(f"Total Execution Time: {final_execution_time:.4f} seconds")
-    
-    return overall_best_makespan, overall_best_schedule, final_execution_time
+        return overall_best_makespan, overall_best_schedule, final_execution_time
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -447,7 +453,7 @@ if __name__ == '__main__':
         D_factor_param = 2
     else:
         file_path = sys.argv[1]
-        max_iters_param = int(sys.argv[2]) if len(sys.argv) > 2 else 12
+        max_iters_param = int(sys.argv[2]) if len(sys.argv) > 2 else 9
         time_limit_param = int(sys.argv[3]) if len(sys.argv) > 3 else 200000
         init_D_param = int(sys.argv[4]) if len(sys.argv) > 4 else 1
         D_factor_param = int(sys.argv[5]) if len(sys.argv) > 5 else 2
